@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Generator dowodów – Symulator lotniska</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background:#eef1f5; padding:20px; }
+    h1 { margin-top:0; }
+    .list { width:30%; float:left; background:#fff; border-radius:10px; padding:10px; box-shadow:0 4px 10px rgba(0,0,0,.1); }
+    .person { padding:8px; border-bottom:1px solid #eee; cursor:pointer; }
+    .person:hover { background:#f1f1f1; }
+
+    .id-card {
+      width:420px;
+      margin-left:35%;
+      background:#fff;
+      border-radius:16px;
+      padding:16px;
+      box-shadow:0 8px 20px rgba(0,0,0,.25);
+    }
+    .id-header {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      border-bottom:2px solid #ddd;
+      padding-bottom:10px;
+    }
+    .photo {
+      width:80px;
+      height:100px;
+      background:#ccc;
+      border-radius:8px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:12px;
+      color:#555;
+    }
+    .id-body { margin-top:12px; }
+    .label { font-size:12px; color:#666; }
+    .value { font-weight:bold; margin-bottom:6px; }
+    #qr { margin-top:12px; }
+  </style>
+</head>
+<body>
+
+<h1>🪪 Generator dowodów osobistych (QR)</h1>
+<p>Kliknij osobę z listy – pojawi się dowód do zeskanowania.</p>
+
+<div class="list" id="list"></div>
+
+<div class="id-card" id="card">
+  <em>Wybierz osobę z listy</em>
+</div>
+
+<script>
+// TA LISTA MUSI BYĆ TAKA SAMA JAK W ODPRAWIE
+const passengers = [
+  {name:"Jan", surname:"Kowalski", class:"eco"},
+  {name:"Anna", surname:"Nowak", class:"biz"},
+  {name:"Piotr", surname:"Zieliński", class:"first"},
+  {name:"Katarzyna", surname:"Wisniewska", class:"eco"},
+  {name:"Michał", surname:"Wójcik", class:"eco"},
+  {name:"Agnieszka", surname:"Kaminska", class:"biz"},
+  {name:"Tomasz", surname:"Lewandowski", class:"eco"},
+  {name:"Natalia", surname:"Dabrowska", class:"eco"},
+  {name:"Paweł", surname:"Mazur", class:"biz"},
+  {name:"Julia", surname:"Kaczmarek", class:"eco"},
+  {name:"Marcin", surname:"Król", class:"eco"},
+  {name:"Oliwia", surname:"Piotrowska", class:"eco"},
+  {name:"Krzysztof", surname:"Grabowski", class:"biz"},
+  {name:"Zuzanna", surname:"Pawlak", class:"eco"},
+  {name:"Adam", surname:"Michalski", class:"eco"},
+  {name:"Monika", surname:"Nowicka", class:"eco"},
+  {name:"Bartosz", surname:"Dudek", class:"biz"},
+  {name:"Karolina", surname:"Zając", class:"eco"},
+  {name:"Mateusz", surname:"Wieczorek", class:"eco"},
+  {name:"Aleksandra", surname:"Jabłońska", class:"first"},
+  {name:"Filip", surname:"Malinowski", class:"eco"},
+  {name:"Magdalena", surname:"Olszewska", class:"eco"},
+  {name:"Łukasz", surname:"Stepień", class:"biz"},
+  {name:"Wiktoria", surname:"Szymczak", class:"eco"},
+  {name:"Daniel", surname:"Górski", class:"eco"},
+  {name:"Patrycja", surname:"Woźniak", class:"eco"},
+  {name:"Kamil", surname:"Lis", class:"biz"},
+  {name:"Sandra", surname:"Czarnecka", class:"eco"},
+  {name:"Rafal", surname:"Ostrowski", class:"eco"},
+  {name:"Emilia", surname:"Piekarska", class:"eco"}
+];
+
+const list = document.getElementById('list');
+const card = document.getElementById('card');
+
+passengers.forEach(p => {
+  const div = document.createElement('div');
+  div.className = 'person';
+  div.textContent = p.name + ' ' + p.surname;
+  div.onclick = () => showId(p);
+  list.appendChild(div);
+});
+
+function showId(p){
+  card.innerHTML = `
+    <div class="id-header">
+      <img src="https://media.istockphoto.com/id/1332100919/pl/wektor/ikona-człowieka-czarna-ikona-symbol-osoby.jpg?s=170667a&w=0&k=20&c=g_osPja_ZVDpmbIb112VuiURh85T6I3wXXQKIIOBmJg=" width="100">
+      <div>
+        <div class="label">Imię</div>
+        <div class="value">${p.name}</div>
+        <div class="label">Nazwisko</div>
+        <div class="value">${p.surname}</div>
+      </div>
+    </div>
+    <div class="id-body">
+      <div class="label">Klasa biletu</div>
+      <div class="value">${p.class.toUpperCase()}</div>
+      <div id="qr"></div>
+      <p style="font-size:12px;color:#666">Kod QR zawiera: <br><strong>${p.name} ${p.surname}</strong></p>
+    </div>
+  `;
+
+  new QRCode(document.getElementById('qr'), {
+    text: p.name + ' ' + p.surname,
+    width: 120,
+    height: 120
+  });
+}
+</script>
+
+</body>
+</html>

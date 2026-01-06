@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Zaawansowany Symulator Odprawy Lotniskowej</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#eef1f5; margin:0; padding:20px; }
+    h1,h2,h3 { margin-top:0; }
+    .container { display:flex; gap:20px; }
+    .box { background:#fff; padding:15px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,.1); }
+    .passenger { padding:8px; border-bottom:1px solid #eee; cursor:pointer; }
+    .passenger.checked { color:gray; text-decoration:line-through; cursor:not-allowed; }
+    .seat { width:42px; height:42px; margin:4px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:12px; }
+    .eco { background:#d1e7dd; }
+    .biz { background:#cff4fc; }
+    .first { background:#ffe69c; }
+    .taken { background:#adb5bd; cursor:not-allowed; }
+    .selected { outline:3px solid #000; }
+    button { padding:10px 16px; border:none; border-radius:8px; cursor:pointer; background:#0d6efd; color:#fff; }
+    button.secondary { background:#6c757d; }
+
+    /* Boarding pass */
+    .boarding-pass {
+      width:420px;
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:0 8px 20px rgba(0,0,0,.2);
+      font-family:'Arial', sans-serif;
+    }
+    .bp-header {
+      background:#003a8f;
+      color:#fff;
+      padding:16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .bp-header span { font-weight:bold; font-size:18px; }
+    .bp-body { padding:16px; background:#fff; }
+    .bp-row { display:flex; justify-content:space-between; margin-bottom:8px; }
+    .bp-label { font-size:12px; color:#666; }
+    .bp-value { font-weight:bold; }
+    .extras label { display:block; margin:6px 0; }
+  </style>
+</head>
+<body>
+<h1>🛫 Zaawansowany symulator odprawy</h1>
+<button class="secondary" onclick="resetCheckin()">🔄 Reset odprawy</button>
+
+<div class="container">
+  <div class="box" style="width:30%">
+    <h2>Pasażerowie</h2>
+    <div id="passengerList"></div>
+  </div>
+
+
+  <div class="box" style="width:70%">
+  <img 
+  src="https://upload.wikimedia.org/wikipedia/commons/2/21/Olsztyn_Mazury_Airport.svg"
+  width="200"
+>
+<p style="font-size:14px;color:#555">
+  Port Lotniczy Olsztyn–Mazury (SZY)
+</p>
+<hr style="margin:20px 0">
+    <h2 id="stepTitle">Informacje o locie</h2>
+    <div id="main" style="text-align:center">
+      <img src="https://content.skyscnr.com/d52e8d8ddf895817f37e199021abaa09/ai-template-lot-full-1.svg" width="200"><br><br>
+      <h3>LOT Polish Airlines</h3>
+      <p><strong>Numer lotu:</strong> LO3508</p>
+	  <p><strong>Trasa:</strong> SZY → KRK</p>
+	  <p><strong>Czas trwania lotu:</strong> 1 godzina, 05 minut</p>
+      <p><strong>Data lotu:</strong> <span id="flightDate"></span></p>
+      <br>
+      <button onclick="startScanner()">Rozpocznij odprawę</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+let flightData = {};
+let currentPassenger = null;
+let selectedSeat = null;
+let selectedExtras = [];
+const seats = {};
+
+const passengers = [
+  {id:1, name:"Jan", surname:"Kowalski", class:"eco", checked:false},
+  {id:2, name:"Anna", surname:"Nowak", class:"biz", checked:false},
+  {id:3, name:"Piotr", surname:"Zieliński", class:"first", checked:false},
+  {id:4, name:"Katarzyna", surname:"Wisniewska", class:"eco", checked:false},
+  {id:5, name:"Michał", surname:"Wójcik", class:"eco", checked:false},
+  {id:6, name:"Agnieszka", surname:"Kaminska", class:"biz", checked:false},
+  {id:7, name:"Tomasz", surname:"Lewandowski", class:"eco", checked:false},
+  {id:8, name:"Natalia", surname:"Dabrowska", class:"eco", checked:false},
+  {id:9, name:"Paweł", surname:"Mazur", class:"biz", checked:false},
+  {id:10, name:"Julia", surname:"Kaczmarek", class:"eco", checked:false},
+  {id:11, name:"Marcin", surname:"Król", class:"eco", checked:false},
+  {id:12, name:"Oliwia", surname:"Piotrowska", class:"eco", checked:false},
+  {id:13, name:"Krzysztof", surname:"Grabowski", class:"biz", checked:false},
+  {id:14, name:"Zuzanna", surname:"Pawlak", class:"eco", checked:false},
+  {id:15, name:"Adam", surname:"Michalski", class:"eco", checked:false},
+  {id:16, name:"Monika", surname:"Nowicka", class:"eco", checked:false},
+  {id:17, name:"Bartosz", surname:"Dudek", class:"biz", checked:false},
+  {id:18, name:"Karolina", surname:"Zając", class:"eco", checked:false},
+  {id:19, name:"Mateusz", surname:"Wieczorek", class:"eco", checked:false},
+  {id:20, name:"Aleksandra", surname:"Jabłońska", class:"first", checked:false},
+  {id:21, name:"Filip", surname:"Malinowski", class:"eco", checked:false},
+  {id:22, name:"Magdalena", surname:"Olszewska", class:"eco", checked:false},
+  {id:23, name:"Łukasz", surname:"Stepień", class:"biz", checked:false},
+  {id:24, name:"Wiktoria", surname:"Szymczak", class:"eco", checked:false},
+  {id:25, name:"Daniel", surname:"Górski", class:"eco", checked:false},
+  {id:26, name:"Patrycja", surname:"Woźniak", class:"eco", checked:false},
+  {id:27, name:"Kamil", surname:"Lis", class:"biz", checked:false},
+  {id:28, name:"Sandra", surname:"Czarnecka", class:"eco", checked:false},
+  {id:29, name:"Rafal", surname:"Ostrowski", class:"eco", checked:false},
+  {id:30, name:"Emilia", surname:"Piekarska", class:"eco", checked:false}
+];
+// ===== ODTWARZANIE STANU PO ODŚWIEŻENIU =====
+const savedPassengers = localStorage.getItem('passengers');
+if (savedPassengers) {
+  const parsed = JSON.parse(savedPassengers);
+  parsed.forEach((p, i) => {
+    if (passengers[i]) {
+      passengers[i].checked = p.checked;
+    }
+  });
+}
+
+const savedSeats = localStorage.getItem('seats');
+if (savedSeats) {
+  Object.assign(seats, JSON.parse(savedSeats));
+}
+
+
+function renderPassengers(){
+  const list=document.getElementById('passengerList');
+  list.innerHTML='';
+  passengers.forEach(p=>{
+    const div=document.createElement('div');
+    div.className='passenger'+(p.checked?' checked':'');
+    div.textContent=`${p.name} ${p.surname} (${p.class})`;
+    if(!p.checked) div.onclick=()=>scanPassenger(p);
+    list.appendChild(div);
+  });
+}
+
+function startScanner(){
+  // Nie próbujemy odczytywać elementów, których nie ma
+  flightData.flightNo = 'LO 123'; // lub stała wartość
+  flightData.gate = 'A1';          // przykładowa bramka
+  flightData.date = new Date().toLocaleDateString(); // dzisiejsza data
+
+  document.getElementById('stepTitle').textContent = 'Skanowanie dokumentu (QR)';
+  const main = document.getElementById('main');
+  main.innerHTML = '<div id="reader" style="width:320px"></div><p>Pozwól na dostęp do kamery i zeskanuj kod QR</p>';
+
+  const qr = new Html5Qrcode('reader');
+  qr.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: 250 },
+    (text)=>{
+      const found = passengers.find(p => `${p.name} ${p.surname}` === text && !p.checked);
+      if(found){
+        qr.stop();
+        scanPassenger(found);
+      } else {
+        alert('Nieprawidłowy lub już użyty kod QR');
+      }
+    }
+  ).catch(err=>{
+    alert('Brak dostępu do kamery. Uruchom przez Live Server / localhost');
+  });
+}
+
+
+function scanPassenger(p){
+  currentPassenger=p;
+  document.getElementById('stepTitle').textContent='Wybór miejsca – '+p.name+' '+p.surname;
+  renderSeats();
+}
+
+function renderSeats(){
+  selectedSeat=null;
+  const main=document.getElementById('main');
+  main.innerHTML='';
+
+  for(let row=1; row<=12; row++){
+    for(let col of ['A','B','C','D','E','F']){
+      const seatId=row+col;
+      let seatClass='eco';
+      if(row<=2) seatClass='first';
+      else if(row<=5) seatClass='biz';
+
+      const div=document.createElement('div');
+      div.textContent=seatId;
+      div.className='seat '+seatClass;
+
+      if(seats[seatId] || seatClass!==currentPassenger.class){
+        div.classList.add('taken');
+      } else {
+        div.onclick=()=>selectSeat(div,seatId);
+      }
+      main.appendChild(div);
+    }
+    main.appendChild(document.createElement('br'));
+  }
+
+  const btn=document.createElement('button');
+  btn.textContent='Dalej – dodatki';
+  btn.onclick=renderExtras;
+  main.appendChild(document.createElement('hr'));
+  main.appendChild(btn);
+}
+
+function selectSeat(div,seatId){
+  document.querySelectorAll('.seat').forEach(s=>s.classList.remove('selected'));
+  div.classList.add('selected');
+  selectedSeat=seatId;
+}
+
+function renderExtras(){
+  if(!selectedSeat){ alert('Wybierz miejsce'); return; }
+  const main=document.getElementById('main');
+  main.innerHTML=`
+    <h3>Dodatkowe usługi</h3>
+    <div class="extras">
+      <label><input type="checkbox" value="Bagaż rejestrowany"> Bagaż rejestrowany</label>
+      <label><input type="checkbox" value="Posiłek"> Posiłek na pokładzie</label>
+      <label><input type="checkbox" value="Pierwszeństwo wejścia"> Priority boarding</label>
+      <label><input type="checkbox" value="Extra legroom"> Extra legroom</label>
+    </div>
+    <button onclick="showBoardingPass()">Generuj boarding pass</button>
+  `;
+}
+
+function showBoardingPass(){
+  selectedExtras=[...document.querySelectorAll('.extras input:checked')].map(i=>i.value);
+  seats[selectedSeat]=true;
+  document.getElementById('stepTitle').textContent='Przepustka lotnicza';
+  const main=document.getElementById('main');
+
+  main.innerHTML=`
+    <div class="boarding-pass">
+      <div class="bp-header" style="justify-content:space-between;align-items:center">
+  <div>
+    <img 
+      src="https://upload.wikimedia.org/wikipedia/commons/2/21/Olsztyn_Mazury_Airport.svg"
+      width="80"
+    >
+    <div style="font-size:12px">SZY – Olsztyn–Mazury</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:18px;font-weight:bold">LOT</div>
+    <div style="font-size:12px">BOARDING PASS</div>
+  </div>
+</div>
+
+      <div class="bp-body">
+        <div class="bp-row"><div><div class="bp-label">Imię i nazwisko</div><div class="bp-value">${currentPassenger.name} ${currentPassenger.surname}</div></div></div>
+        <div class="bp-row"><div><div class="bp-label">Klasa</div><div class="bp-value">${currentPassenger.class}</div></div><div><div class="bp-label">Miejsce</div><div class="bp-value">${selectedSeat}</div></div></div>
+        <div class="bp-row"><div><div class="bp-label">Lot</div><div class="bp-value">${flightData.flightNo}</div></div><div><div class="bp-label">Bramka</div><div class="bp-value">${flightData.gate}</div></div></div>
+        <div class="bp-row"><div><div class="bp-label">Data</div><div class="bp-value">${flightData.date||'-'}</div></div></div>
+        <div class="bp-row"><div><div class="bp-label">Dodatki</div><div class="bp-value">${selectedExtras.join(', ')||'Brak'}</div></div></div>
+      </div>
+    </div>
+    <h3>Podsumowanie odprawy</h3>
+    <ul>
+      <li>Miejsce: <strong>${selectedSeat}</strong></li>
+      <li>Usługi: <strong>${selectedExtras.join(', ')||'Brak'}</strong></li>
+    </ul>
+    <br><button onclick="finish()">Gotowe</button>
+  `;
+}
+
+function finish(){
+  // oznacz pasażera jako odprawionego
+  currentPassenger.checked = true;
+
+  // ZAPIS STANU DO localStorage
+  localStorage.setItem('passengers', JSON.stringify(passengers));
+  localStorage.setItem('seats', JSON.stringify(seats));
+
+  // reset bieżącego widoku
+  currentPassenger = null;
+  selectedSeat = null;
+  selectedExtras = [];
+
+  document.getElementById('main').innerHTML = '';
+  document.getElementById('stepTitle').textContent = 'Zeskanuj dokument (QR)';
+  renderPassengers();
+}
+
+
+function showIdGenerator(){
+  document.getElementById('stepTitle').textContent='Generator dowodów (QR)';
+  const main=document.getElementById('main');
+  main.innerHTML='<h3>Fałszywe dowody do symulatora</h3><div id="ids"></div><button onclick="backToCheckin()">Powrót do odprawy</button>';
+
+  const ids=document.getElementById('ids');
+  fakePeople.forEach(name=>{
+    const card=document.createElement('div');
+    card.style.border='1px solid #ccc';
+    card.style.borderRadius='12px';
+    card.style.padding='10px';
+    card.style.margin='10px 0';
+    card.style.display='flex';
+    card.style.alignItems='center';
+    card.style.gap='16px';
+
+    const info=document.createElement('div');
+    info.innerHTML=`<strong>Dowód osobisty</strong><br>${name}`;
+
+    const qrDiv=document.createElement('div');
+    new QRCode(qrDiv,{text:name,width:100,height:100});
+
+    card.appendChild(info);
+    card.appendChild(qrDiv);
+    ids.appendChild(card);
+  });
+}
+
+function backToCheckin(){ location.reload(); }
+
+function resetCheckin(){
+  if(!confirm('Czy na pewno zresetować całą odprawę?')) return;
+  localStorage.removeItem('passengers');
+  localStorage.removeItem('seats');
+  location.reload();
+}
+
+document.getElementById('flightDate').textContent =
+  new Date().toLocaleDateString('pl-PL');
+
+renderPassengers();
+</script>
+</body>
+</html>
